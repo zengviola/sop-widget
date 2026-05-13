@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>计数器</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#141210;--surface:#1e1c1a;--border:rgba(255,255,255,0.1);--text:#f0ece6;--muted:#7a766e;--hint:#4a4640;--green:#7ecf7e;--red:#e08080;--orange:#e0a060}
+html,body{height:100%;height:100dvh;overflow:hidden}
+body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);display:flex;flex-direction:column;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.page-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;align-items:center}
+.bottom-nav{flex-shrink:0;height:calc(60px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--surface);border-top:1px solid var(--border);display:flex}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:none;cursor:pointer;color:var(--hint);transition:color 0.15s;font-family:inherit;padding:0;-webkit-tap-highlight-color:transparent}
+.tab .tab-icon{font-size:22px;line-height:1}.tab .tab-label{font-size:10px;letter-spacing:0.04em}
+.tab.active{color:var(--text)}.tab.active .tab-label{font-weight:500}
+.panel{display:none;flex-direction:column;align-items:center;width:100%;max-width:420px;margin:0 auto;padding:2.5rem 1.5rem 2rem}
+.panel.active{display:flex}
+.count-display{font-family:'DM Mono',monospace;font-size:clamp(90px,25vw,160px);font-weight:400;line-height:1;color:var(--text);transition:color 0.2s,transform 0.08s;margin-bottom:3rem;letter-spacing:-0.02em;min-width:4ch;text-align:center}
+.count-display.negative{color:var(--red)}.count-display.bump{transform:scale(1.05)}
+.controls{display:flex;align-items:center;gap:24px;margin-bottom:2rem}
+.btn{width:64px;height:64px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.12s,color 0.12s,transform 0.08s;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn:active{transform:scale(0.92);background:var(--bg);color:var(--text)}
+.btn-main{width:96px;height:96px;font-size:38px;color:var(--text)}
+.actions{display:flex;gap:8px;margin-bottom:2rem;flex-wrap:wrap;justify-content:center}
+.ghost{font-family:'DM Sans',sans-serif;font-size:13px;color:var(--hint);background:none;border:none;cursor:pointer;padding:10px 16px;border-radius:20px;transition:background 0.12s,color 0.12s;min-height:44px;display:flex;align-items:center;-webkit-tap-highlight-color:transparent}
+.ghost:active{background:var(--surface);color:var(--muted)}
+.status{font-family:'DM Mono',monospace;font-size:11px;color:var(--hint);display:flex;align-items:center;gap:6px;margin-bottom:1.5rem}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.history{width:100%;max-width:280px}
+.history-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--muted);font-family:'DM Mono',monospace}
+.history-row:last-child{border-bottom:none}.history-row .val{color:var(--text);font-weight:500}.history-row .time{color:var(--hint);font-size:11px}
+.timer-display{font-family:'DM Mono',monospace;font-size:clamp(56px,16vw,100px);font-weight:400;letter-spacing:0.04em;color:var(--text);margin-bottom:2.4rem;transition:color 0.3s;text-align:center}
+.timer-controls{display:flex;align-items:center;gap:14px;margin-bottom:1.6rem;flex-wrap:wrap;justify-content:center}
+.btn-timer{height:52px;padding:0 26px;border-radius:26px;border:1px solid var(--border);background:var(--surface);font-family:'DM Sans',sans-serif;font-size:15px;color:var(--text);cursor:pointer;transition:background 0.12s,transform 0.08s;white-space:nowrap;min-width:80px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn-timer:active{transform:scale(0.96);background:var(--bg)}.btn-timer.primary{background:var(--text);color:var(--bg);border-color:var(--text)}.btn-timer.primary:active{opacity:0.85}
+.laps{width:100%;max-width:280px;max-height:200px;overflow-y:auto}
+.lap-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;font-family:'DM Mono',monospace;color:var(--muted)}
+.lap-row:last-child{border-bottom:none}.lap-row .lap-t{color:var(--text)}
+.cd-inputs{display:flex;align-items:center;gap:10px;margin-bottom:1.4rem;transition:opacity 0.2s}
+.cd-input-wrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+.cd-input-wrap label{font-family:'DM Mono',monospace;font-size:11px;color:var(--hint);letter-spacing:0.1em}
+.cd-input{width:72px;padding:10px 0;text-align:center;font-family:'DM Mono',monospace;font-size:26px;font-weight:400;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--text);outline:none;transition:border-color 0.15s}
+.cd-input:focus{border-color:var(--muted)}.cd-sep{font-family:'DM Mono',monospace;font-size:26px;color:var(--hint)}
+.presets{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:1.8rem;transition:opacity 0.2s}
+.preset{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);padding:8px 16px;border-radius:18px;border:1px solid var(--border);background:none;cursor:pointer;min-height:44px;display:flex;align-items:center;transition:background 0.12s,color 0.12s;-webkit-tap-highlight-color:transparent}
+.preset:active{background:var(--surface);color:var(--text)}
+.progress-ring{margin-bottom:1.8rem}
+@keyframes flash{0%,100%{opacity:1}50%{opacity:.35}}.flashing{animation:flash 0.6s infinite}
+.reward-card{width:100%;border:1px solid var(--border);border-radius:16px;padding:18px 16px;margin-bottom:14px;background:var(--surface)}
+.reward-draw-btn{width:100%;padding:14px 0;border-radius:12px;border:1px solid var(--border);font-family:'DM Sans',sans-serif;font-size:15px;cursor:pointer;font-weight:500;transition:opacity 0.15s,transform 0.1s;min-height:52px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.reward-draw-btn:active:not(:disabled){transform:scale(0.97);opacity:0.82}.reward-draw-btn:disabled{opacity:0.4;cursor:default}
+.sop-selbar::-webkit-scrollbar{display:none}
+.sop-selbar{scrollbar-width:none;-ms-overflow-style:none}
+/* Office minimal theme */
+html.theme-office{--bg:#fafafa;--surface:#ffffff;--border:rgba(0,0,0,0.06);--text:#888;--muted:#bbb;--hint:#d4d4d4;--green:#7cb97c;--red:#d08080;--orange:#c8a060}
+html.theme-office .sop-selbar::-webkit-scrollbar{display:block;height:2px}
+html.theme-office .sop-selbar::-webkit-scrollbar-track{background:transparent}
+html.theme-office .sop-selbar::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:2px}
+html.theme-office .sop-selbar{scrollbar-width:thin;scrollbar-color:rgba(0,0,0,0.15) transparent}
+html.theme-office body{border:1px solid var(--border)}
+html.theme-office .bottom-nav{display:none}
+html.theme-office #theme-btn{top:8px;right:8px}
+/* Theme toggle button */
+#theme-btn{position:fixed;top:10px;right:10px;z-index:999;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:14px;padding:4px 10px;border-radius:20px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;opacity:0.7;transition:opacity 0.15s}
+#theme-btn:hover{opacity:1}
+</style>
+</head>
+<body>
+<div class="page-content">
+<section class="panel" id="panel-counter">
+<div class="count-display" id="display">0</div>
+<div class="controls">
+<button class="btn" id="btn-minus">−</button>
+<button class="btn btn-main" id="btn-add">+</button>
+<button class="btn" id="btn-undo" style="font-size:18px;">撤</button>
+</div>
+<div class="actions">
+<button class="ghost" id="btn-reset">重置</button>
+<button class="ghost" id="btn-clear-history">清除历史</button>
+</div>
+<div class="status"><span class="dot"></span><span id="status-text">已就绪</span></div>
+<div class="history" id="history-box"></div>
+</section>
+<section class="panel" id="panel-stopwatch">
+<div class="timer-display" id="sw-display">00:00.0</div>
+<div class="timer-controls">
+<button class="btn-timer primary" id="sw-start">开始</button>
+<button class="btn-timer" id="sw-lap" disabled>记圈</button>
+<button class="btn-timer" id="sw-reset-btn">重置</button>
+</div>
+<div class="laps" id="sw-laps"></div>
+</section>
+<section class="panel" id="panel-countdown">
+<div class="cd-inputs" id="cd-inputs">
+<div class="cd-input-wrap"><label>时</label><input class="cd-input" id="cd-h" type="number" min="0" max="99" value="0"></div>
+<span class="cd-sep">:</span>
+<div class="cd-input-wrap"><label>分</label><input class="cd-input" id="cd-m" type="number" min="0" max="59" value="5"></div>
+<span class="cd-sep">:</span>
+<div class="cd-input-wrap"><label>秒</label><input class="cd-input" id="cd-s" type="number" min="0" max="59" value="0"></div>
+</div>
+<div class="presets" id="cd-presets">
+<button class="preset" onclick="setPreset(1,0,0)">1小时</button>
+<button class="preset" onclick="setPreset(0,25,0)">25分钟</button>
+<button class="preset" onclick="setPreset(0,10,0)">10分钟</button>
+<button class="preset" onclick="setPreset(0,5,0)">5分钟</button>
+<button class="preset" onclick="setPreset(0,1,0)">1分钟</button>
+<button class="preset" onclick="setPreset(0,0,30)">30秒</button>
+</div>
+<svg class="progress-ring" width="160" height="160" viewBox="0 0 160 160">
+<circle cx="80" cy="80" r="70" fill="none" stroke="var(--border)" stroke-width="6"/>
+<circle id="cd-ring" cx="80" cy="80" r="70" fill="none" stroke="var(--green)" stroke-width="6" stroke-linecap="round" stroke-dasharray="439.8" stroke-dashoffset="0" transform="rotate(-90 80 80)" style="transition:stroke-dashoffset 0.4s,stroke 0.3s"/>
+<text id="cd-ring-text" x="80" y="88" text-anchor="middle" font-family="DM Mono,monospace" font-size="28" fill="var(--text)">05:00</text>
+</svg>
+<div class="timer-controls">
+<button class="btn-timer primary" id="cd-start">开始</button>
+<button class="btn-timer" id="cd-reset-btn">重置</button>
+</div>
+<div id="cd-done-msg" style="font-family:'DM Mono',monospace;font-size:13px;color:var(--red);min-height:22px;margin-top:2px;"></div>
+</section>
+<section class="panel" id="panel-reward"></section>
+<section class="panel" id="panel-task"></section>
+<section class="panel active" id="panel-sop"></section>
+<section class="panel" id="panel-log"></section>
+</div>
+<nav class="bottom-nav" id="bottom-nav"></nav>
+<button id="theme-btn" onclick="toggleTheme()"></button>
+
+<script>
+/* THEME */
+var THEME_KEY='my_theme_v1';
+var currentTheme='dark';
+function isOfficeHours(){var d=new Date(),day=d.getDay(),h=d.getHours();return day>=1&&day<=4&&h>=7&&h<15;}
+function applyTheme(name){
+currentTheme=name;
+document.documentElement.className=name==='office'?'theme-office':'';
+var btn=document.getElementById('theme-btn');
+if(btn)btn.textContent=name==='office'?'🌙 暗色':'☀️ 极简';
+try{localStorage.setItem(THEME_KEY,name);}catch(e){}
+if(name==='office'){
+// force 上班日 SOP
+document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+var sp=document.getElementById('panel-sop');if(sp)sp.classList.add('active');
+currentTabId='sop';
+// select 上班日 once sopList is loaded
+if(typeof sopList!=='undefined'&&sopList.length){
+var wi=sopList.findIndex(function(s){return s.name==='上班日';});
+if(wi>=0){sopActiveListIdx=wi;}
+if(typeof renderSOP==='function')renderSOP();
+}
+}
+}
+function toggleTheme(){applyTheme(currentTheme==='office'?'dark':'office');}
+function loadTheme(){
+var saved=null;try{saved=localStorage.getItem(THEME_KEY);}catch(e){}
+applyTheme(saved||(isOfficeHours()?'office':'dark'));
+}
+loadTheme();
+
+var _store={};
+function _cSet(k,v){_store[k]=String(v);if(window.storage)window.storage.set(k,String(v)).catch(function(){});}
+function _cGet(k){return _store[k]!==undefined?_store[k]:null;}
+function _cDel(k){delete _store[k];if(window.storage)window.storage.delete(k).catch(function(){});}
+
+async function _initStorage(){
+var keys=['my_counter_v1','my_counter_history_v1','my_rewards_v1','my_tasks_v1','my_task_pools_v1','my_sop_list_v2','my_sop_active_idx','my_sop_inputs_v1','my_sop_log_v1','my_sop_session_v1','my_tab_order_v1'];
+for(var i=0;i<keys.length;i++){try{var r=await window.storage.get(keys[i]);if(r&&r.value!==undefined)_store[keys[i]]=r.value;}catch(e){}}
+}
+
+var TAB_ORDER_KEY='my_tab_order_v1';
+var ALL_TABS=[
+{id:'sop',      icon:'🌅', label:'起床'},
+{id:'counter',  icon:'🔢', label:'计数'},
+{id:'stopwatch',icon:'⏱',  label:'计时'},
+{id:'countdown',icon:'⏳', label:'倒计时'},
+{id:'reward',   icon:'🎁', label:'奖励'},
+{id:'task',     icon:'✅', label:'任务'},
+{id:'log',      icon:'📖', label:'本周'}
+];
+var tabOrder=null;
+var currentTabId='sop';
+var navDragSrc=null;
+
+function loadTabOrder(){
+try{
+var s=_cGet(TAB_ORDER_KEY);
+if(s){var o=JSON.parse(s);if(Array.isArray(o)){var validIds=ALL_TABS.map(function(t){return t.id;});var filtered=o.filter(function(id){return validIds.indexOf(id)>=0;});validIds.forEach(function(id){if(filtered.indexOf(id)<0)filtered.push(id);});tabOrder=filtered;return;}}
+}catch(e){}
+tabOrder=ALL_TABS.map(function(t){return t.id;});
+}
+function saveTabOrder(){_cSet(TAB_ORDER_KEY,JSON.stringify(tabOrder));}
+
+function switchTab(name){
+currentTabId=name;
+document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+var panel=document.getElementById('panel-'+name);
+if(panel)panel.classList.add('active');
+renderNav();
+if(name==='log')renderLogPanel();
+}
+
+function renderNav(){
+var nav=document.getElementById('bottom-nav');if(!nav)return;nav.innerHTML='';
+tabOrder.forEach(function(tabId,i){
+var tabDef=ALL_TABS.find(function(t){return t.id===tabId;});if(!tabDef)return;
+var btn=document.createElement('button');
+btn.className='tab'+(currentTabId===tabId?' active':'');
+btn.innerHTML='<span class="tab-icon">'+tabDef.icon+'</span><span class="tab-label">'+tabDef.label+'</span>';
+btn.dataset.tabid=tabId;btn.dataset.idx=i;
+btn.style.cssText='touch-action:none;user-select:none;';
+btn.onclick=function(){if(navDragSrc!==null)return;switchTab(tabId);};
+btn.addEventListener('mousedown',function(e){
+if(e.button!==0)return;
+var startX=e.clientX,moved=false;
+var onMove=function(e2){
+if(!moved&&Math.abs(e2.clientX-startX)>6){moved=true;navDragSrc=i;btn.style.opacity='0.4';}
+if(!moved)return;
+var el=document.elementFromPoint(e2.clientX,e2.clientY);
+var target=el&&el.closest&&el.closest('[data-tabid]');
+if(target&&target!==btn){var toIdx=parseInt(target.dataset.idx);if(!isNaN(toIdx)&&toIdx!==navDragSrc){var m=tabOrder.splice(navDragSrc,1)[0];tabOrder.splice(toIdx,0,m);navDragSrc=toIdx;saveTabOrder();renderNav();}}
+};
+var onUp=function(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);btn.style.opacity='1';if(moved)setTimeout(function(){navDragSrc=null;},50);else navDragSrc=null;};
+document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);
+});
+nav.appendChild(btn);
+});
+}
+
+/* COUNTER */
+var STORAGE_KEY='my_counter_v1',HISTORY_KEY='my_counter_history_v1',count=0,stack=[],counterLog=[];
+var display=document.getElementById('display'),statusText=document.getElementById('status-text'),historyBox=document.getElementById('history-box');
+function loadCounter(){try{var s=_cGet(STORAGE_KEY);if(s!==null)count=parseInt(s,10)||0;var h=_cGet(HISTORY_KEY);if(h)counterLog=JSON.parse(h);}catch(e){}renderCount();renderHistory();if(count!==0)setStatus('已恢复上次数据');}
+function saveCounter(){try{_cSet(STORAGE_KEY,String(count));_cSet(HISTORY_KEY,JSON.stringify(counterLog));setStatus('已自动保存');}catch(e){setStatus('保存失败');}}
+function renderCount(){display.textContent=count;display.classList.toggle('negative',count<0);display.classList.add('bump');setTimeout(function(){display.classList.remove('bump');},80);}
+var statusTimer;
+function setStatus(msg){statusText.textContent=msg;clearTimeout(statusTimer);statusTimer=setTimeout(function(){statusText.textContent='上次保存 '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1800);}
+function addHistory(action){counterLog.unshift({action:action,value:count,time:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})});if(counterLog.length>8)counterLog.pop();renderHistory();}
+function renderHistory(){if(!counterLog.length){historyBox.innerHTML='';return;}historyBox.innerHTML=counterLog.map(function(h){return '<div class="history-row"><span>'+h.action+'</span><span class="val">'+h.value+'</span><span class="time">'+h.time+'</span></div>';}).join('');}
+function update(n,a){stack.push(count);count=n;renderCount();addHistory(a);saveCounter();}
+document.getElementById('btn-add').addEventListener('click',function(){update(count+1,'+1');});
+document.getElementById('btn-minus').addEventListener('click',function(){update(count-1,'−1');});
+document.getElementById('btn-undo').addEventListener('click',function(){if(!stack.length)return;count=stack.pop();renderCount();addHistory('撤销');saveCounter();});
+document.getElementById('btn-reset').addEventListener('click',function(){stack.length=0;count=0;renderCount();addHistory('重置');saveCounter();});
+document.getElementById('btn-clear-history').addEventListener('click',function(){counterLog=[];renderHistory();try{_cDel(HISTORY_KEY);}catch(e){}});
+var holdTimer,holdInterval;
+function startHold(){holdTimer=setTimeout(function(){holdInterval=setInterval(function(){update(count+1,'+1');},80);},500);}
+function stopHold(){clearTimeout(holdTimer);clearInterval(holdInterval);}
+var addBtn=document.getElementById('btn-add');
+addBtn.addEventListener('mousedown',startHold);['mouseup','mouseleave'].forEach(function(e){addBtn.addEventListener(e,stopHold);});
+addBtn.addEventListener('touchstart',function(e){e.preventDefault();startHold();},{passive:false});
+['touchend','touchcancel'].forEach(function(e){addBtn.addEventListener(e,stopHold);});
+document.addEventListener('keydown',function(e){if(!document.getElementById('panel-counter').classList.contains('active'))return;if(e.key==='ArrowUp'||e.key==='+')update(count+1,'+1');else if(e.key==='ArrowDown'||e.key==='-')update(count-1,'−1');else if(e.key==='z'&&(e.ctrlKey||e.metaKey)){e.preventDefault();document.getElementById('btn-undo').click();}});
+
+/* STOPWATCH */
+var swRunning=false,swElapsed=0,swStart=0,swRaf=null,laps=[],lastLapAt=0;
+var swDisplay=document.getElementById('sw-display'),swStartBtn=document.getElementById('sw-start'),swLapBtn=document.getElementById('sw-lap'),swLapList=document.getElementById('sw-laps');
+function fmtSW(ms){ms=Math.max(0,Math.floor(ms));var min=Math.floor(ms/60000),sec=Math.floor((ms%60000)/1000),tenth=Math.floor((ms%1000)/100);return String(min).padStart(2,'0')+':'+String(sec).padStart(2,'0')+'.'+tenth;}
+function swTick(){swElapsed=Date.now()-swStart;swDisplay.textContent=fmtSW(swElapsed);swRaf=requestAnimationFrame(swTick);}
+swStartBtn.addEventListener('click',function(){if(!swRunning){swRunning=true;swStart=Date.now()-swElapsed;swStartBtn.textContent='暂停';swLapBtn.disabled=false;swRaf=requestAnimationFrame(swTick);}else{swRunning=false;cancelAnimationFrame(swRaf);swStartBtn.textContent='继续';swLapBtn.disabled=true;}});
+swLapBtn.addEventListener('click',function(){var lt=swElapsed-lastLapAt;lastLapAt=swElapsed;laps.unshift({n:laps.length+1,lap:lt,total:swElapsed});renderLaps();});
+document.getElementById('sw-reset-btn').addEventListener('click',function(){swRunning=false;cancelAnimationFrame(swRaf);swElapsed=0;swStart=0;lastLapAt=0;laps=[];swDisplay.textContent='00:00.0';swStartBtn.textContent='开始';swLapBtn.disabled=true;renderLaps();});
+function renderLaps(){swLapList.innerHTML=laps.map(function(l){return '<div class="lap-row"><span>第'+l.n+'圈</span><span class="lap-t">'+fmtSW(l.lap)+'</span><span style="color:var(--hint);font-size:10px">'+fmtSW(l.total)+'</span></div>';}).join('');}
+
+/* COUNTDOWN */
+var cdTotal=0,cdRemaining=0,cdRunning=false,cdStart2=0,cdRaf2=null,cdDone=false;
+var cdStartBtn=document.getElementById('cd-start'),cdResetBtn=document.getElementById('cd-reset-btn');
+var cdRing=document.getElementById('cd-ring'),cdRingText=document.getElementById('cd-ring-text'),cdDoneMsg=document.getElementById('cd-done-msg');
+var RING_FULL=2*Math.PI*70;
+function getInputSecs(){var h=parseInt(document.getElementById('cd-h').value)||0,m=parseInt(document.getElementById('cd-m').value)||0,s=parseInt(document.getElementById('cd-s').value)||0;return h*3600+m*60+s;}
+function fmtCD(secs){secs=Math.max(0,Math.ceil(secs));var h=Math.floor(secs/3600),m=Math.floor((secs%3600)/60),s=secs%60;if(h>0)return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');}
+function updateRing(r,t){var f=t>0?Math.min(1,r/t):1;cdRing.setAttribute('stroke-dashoffset',(RING_FULL*(1-f)).toFixed(2));cdRingText.textContent=fmtCD(r);cdRing.setAttribute('stroke',r<=0?'var(--red)':r<=Math.max(5,t*0.1)?'var(--orange)':'var(--green)');}
+function setInputsLocked(locked){var op=locked?'0.35':'1',pe=locked?'none':'';document.getElementById('cd-inputs').style.opacity=op;document.getElementById('cd-inputs').style.pointerEvents=pe;document.getElementById('cd-presets').style.opacity=op;document.getElementById('cd-presets').style.pointerEvents=pe;}
+function cdTick(){var elapsed=(Date.now()-cdStart2)/1000;cdRemaining=Math.max(0,cdTotal-elapsed);updateRing(cdRemaining,cdTotal);if(cdRemaining<=0){cdRunning=false;cdDone=true;cdStartBtn.textContent='重新开始';cdDoneMsg.textContent='⏰ 时间到！';cdRingText.classList.add('flashing');return;}cdRaf2=requestAnimationFrame(cdTick);}
+cdStartBtn.addEventListener('click',function(){
+if(cdDone){cdDone=false;cdRemaining=0;cdTotal=0;cdDoneMsg.textContent='';cdRingText.classList.remove('flashing');setInputsLocked(false);cdStartBtn.textContent='开始';updateRing(getInputSecs(),getInputSecs()||1);return;}
+if(!cdRunning){var secs=cdRemaining>0?cdRemaining:getInputSecs();if(secs<=0)return;if(cdTotal===0)cdTotal=secs;cdRemaining=secs;cdStart2=Date.now()-(cdTotal-cdRemaining)*1000;cdRunning=true;cdDoneMsg.textContent='';cdStartBtn.textContent='暂停';setInputsLocked(true);cdRaf2=requestAnimationFrame(cdTick);}
+else{cdRunning=false;cancelAnimationFrame(cdRaf2);cdStartBtn.textContent='继续';}
+});
+cdResetBtn.addEventListener('click',function(){cdRunning=false;cdDone=false;cancelAnimationFrame(cdRaf2);cdRemaining=0;cdTotal=0;cdDoneMsg.textContent='';cdRingText.classList.remove('flashing');cdStartBtn.textContent='开始';setInputsLocked(false);var s=getInputSecs();updateRing(s,s||1);});
+['cd-h','cd-m','cd-s'].forEach(function(id){document.getElementById(id).addEventListener('input',function(){if(!cdRunning&&!cdDone){var s=getInputSecs();updateRing(s,s||1);}});});
+function setPreset(h,m,s){if(cdRunning)return;document.getElementById('cd-h').value=h;document.getElementById('cd-m').value=m;document.getElementById('cd-s').value=s;cdRemaining=0;cdTotal=0;cdDone=false;cdDoneMsg.textContent='';cdRingText.classList.remove('flashing');cdStartBtn.textContent='开始';var total=h*3600+m*60+s;updateRing(total,total||1);}
+function triggerCountdown(h,m,s){cdRunning=false;cdDone=false;cancelAnimationFrame(cdRaf2);cdRemaining=0;cdTotal=0;cdDoneMsg.textContent='';cdRingText.classList.remove('flashing');setInputsLocked(false);document.getElementById('cd-h').value=h;document.getElementById('cd-m').value=m;document.getElementById('cd-s').value=s;var total=h*3600+m*60+s;updateRing(total,total||1);cdStartBtn.textContent='开始';switchTab('countdown');setTimeout(function(){cdStartBtn.click();},200);}
+updateRing(getInputSecs(),getInputSecs()||1);
+
+/* REWARD */
+var REWARD_KEY='my_rewards_v1';
+var TIER_META=[{id:'mini',label:'mini奖',emoji:'✨',color:'#8a7ecf',bg:'rgba(138,126,207,0.08)'},{id:'small',label:'小奖励',emoji:'⭐',color:'#c8a84b',bg:'rgba(200,168,75,0.08)'},{id:'medium',label:'中奖励',emoji:'🎁',color:'#5a9e6e',bg:'rgba(90,158,110,0.08)'},{id:'big',label:'大奖励',emoji:'🏆',color:'#c0604a',bg:'rgba(192,96,74,0.08)'}];
+var DEFAULT_POOLS={mini:['吃一颗糖','休息五分钟','喝杯水','伸个懒腰','刷10分钟消息'],small:['看一集喜欢的剧','买一杯奶茶','刷半小时手机','玩一局游戏'],medium:['点一顿外卖','买一件小物','睡个午觉','出去逛街','看一部电影'],big:['买一件心仪已久的东西','来一次短途旅行','去一次好餐厅','做一次SPA']};
+var rewardPools={},editingTier=null;
+var WATER_KEYWORDS=['水','饮料','喝','茶','汤','果汁','牛奶'];
+function isWaterRelated(t){return WATER_KEYWORDS.some(function(k){return t.indexOf(k)>=0;});}
+function loadRewards(){try{var s=_cGet(REWARD_KEY);if(s)rewardPools=JSON.parse(s);else rewardPools=JSON.parse(JSON.stringify(DEFAULT_POOLS));}catch(e){rewardPools=JSON.parse(JSON.stringify(DEFAULT_POOLS));}renderRewardPanel();}
+function saveRewards(){try{_cSet(REWARD_KEY,JSON.stringify(rewardPools));}catch(e){}}
+function parseTime(text){var cnN={'零':0,'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'十五':15,'二十':20,'二十五':25,'三十':30,'四十五':45,'五十':50};function toN(s){if(!isNaN(s))return parseInt(s);return cnN[s]!==undefined?cnN[s]:null;}var h=0,m=0,s=0,f=false,mt;mt=text.match(/([零一两二三四五六七八九十百\d]+)(?:个)?小时/);if(mt){var n=toN(mt[1]);if(n!==null){h=n;f=true;}}mt=text.match(/([零一两二三四五六七八九十\d]+)分钟?/);if(mt){var n=toN(mt[1]);if(n!==null){m=n;f=true;}}mt=text.match(/([零一两二三四五六七八九十\d]+)秒/);if(mt){var n=toN(mt[1]);if(n!==null){s=n;f=true;}}return f?{h:h,m:m,s:s}:null;}
+function drawReward(tier,pool){var banner=document.getElementById('reward-banner');var hour=new Date().getHours();var filtered=pool;if(hour>=19){var nw=pool.filter(function(i){return!isWaterRelated(i);});if(nw.length>0)filtered=nw;}var picked=filtered[Math.floor(Math.random()*filtered.length)];var ti=parseTime(picked);banner.style.opacity='0';banner.style.transform='scale(0.8)';banner.style.transition='opacity 0.15s,transform 0.15s';setTimeout(function(){var cdBtn=ti?'<button onclick="triggerCountdown('+ti.h+','+ti.m+','+ti.s+')" style="margin-top:10px;padding:7px 18px;border-radius:20px;border:1px solid '+tier.color+'66;background:'+tier.bg+';color:'+tier.color+';font-size:12px;cursor:pointer;font-family:sans-serif;font-weight:500;">▶ 开始倒计时</button>':'';banner.innerHTML='<div style="text-align:center;padding:14px 24px;border-radius:14px;background:'+tier.bg+';border:1.5px solid '+tier.color+'55;max-width:300px;"><div style="font-size:11px;font-family:monospace;color:'+tier.color+';letter-spacing:0.1em;margin-bottom:6px;">'+tier.emoji+' '+tier.label+'</div><div style="font-size:20px;font-weight:500;color:var(--text);line-height:1.3;">'+picked+'</div>'+cdBtn+'</div>';banner.style.opacity='1';banner.style.transform='scale(1)';},150);}
+function renderRewardPanel(){
+var panel=document.getElementById('panel-reward');panel.innerHTML='';
+var banner=document.createElement('div');banner.id='reward-banner';banner.style.cssText='min-height:64px;display:flex;align-items:center;justify-content:center;margin-bottom:1.6rem;width:100%;max-width:320px;';panel.appendChild(banner);
+TIER_META.forEach(function(tier){
+var pool=rewardPools[tier.id]||[];
+var card=document.createElement('div');card.className='reward-card';card.style.cssText='border-color:'+tier.color+'33;';
+var header=document.createElement('div');header.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;';
+var title=document.createElement('span');title.style.cssText='font-family:monospace;font-size:13px;font-weight:500;color:'+tier.color+';';title.textContent=tier.emoji+'  '+tier.label;
+var editBtn=document.createElement('button');editBtn.className='ghost';editBtn.style.cssText='font-size:11px;padding:3px 10px;';
+editBtn.textContent=editingTier===tier.id?'完成':'编辑奖池';
+editBtn.onclick=(function(t){return function(){editingTier=editingTier===t.id?null:t.id;renderRewardPanel();};})(tier);
+header.appendChild(title);header.appendChild(editBtn);card.appendChild(header);
+if(editingTier===tier.id){
+var hint=document.createElement('p');hint.style.cssText='font-size:11px;color:var(--hint);margin-bottom:8px;';hint.textContent='每行一个奖励项目';card.appendChild(hint);
+var ta=document.createElement('textarea');ta.style.cssText='width:100%;min-height:100px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);resize:vertical;outline:none;line-height:1.6;';ta.value=pool.join('\n');
+ta.oninput=(function(tid){return function(){rewardPools[tid]=ta.value.split('\n').map(function(s){return s.trim();}).filter(Boolean);saveRewards();};})(tier.id);
+card.appendChild(ta);
+}else{
+var drawBtn=document.createElement('button');drawBtn.className='reward-draw-btn';drawBtn.style.cssText='background:'+tier.bg+';border-color:'+tier.color+'44;color:'+tier.color+';';drawBtn.textContent=pool.length?'🎲  抽取'+tier.label:'奖池为空';drawBtn.disabled=!pool.length;
+drawBtn.onclick=(function(t,p){return function(){drawReward(t,p);};})(tier,pool);
+card.appendChild(drawBtn);
+if(pool.length){var prev=document.createElement('div');prev.style.cssText='display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;';pool.forEach(function(item){var tag=document.createElement('span');tag.style.cssText='font-size:11px;padding:2px 9px;border-radius:12px;background:'+tier.bg+';color:'+tier.color+';border:1px solid '+tier.color+'33;';tag.textContent=item;prev.appendChild(tag);});card.appendChild(prev);}
+}
+panel.appendChild(card);
+});}
+
+/* TASK */
+var TASK_KEY='my_tasks_v1',TASK_POOL_KEY='my_task_pools_v1';
+var TASK_TIERS=[{id:'mini',label:'mini任务',emoji:'✨',color:'#8a7ecf',bg:'rgba(138,126,207,0.08)'},{id:'small',label:'小任务',emoji:'⭐',color:'#c8a84b',bg:'rgba(200,168,75,0.08)'},{id:'medium',label:'中任务',emoji:'🎯',color:'#5a9e6e',bg:'rgba(90,158,110,0.08)'},{id:'big',label:'大任务',emoji:'🏔',color:'#c0604a',bg:'rgba(192,96,74,0.08)'}];
+var DEFAULT_TASK_POOLS={mini:['喝一杯水','做10个深蹲','整理桌面5分钟','回复一条微信消息','回复一封Gmail邮件','回复一封Outlook邮件','休息一下眼睛1分钟'],small:['读书30分钟','整理收件箱','写今日日记','散步15分钟','整理笔记'],medium:['完成一个工作模块','锻炼45分钟','清理房间','学习新技能1小时','完成一份报告'],big:['完成一个项目','深度清洁全屋','制定下月计划','读完一本书','完成一次重要拜访']};
+var taskPools={},tasks={},taskEditingTier=null;
+function loadTasks(){try{var p=_cGet(TASK_POOL_KEY);taskPools=p?JSON.parse(p):JSON.parse(JSON.stringify(DEFAULT_TASK_POOLS));var t=_cGet(TASK_KEY);tasks=t?JSON.parse(t):{};}catch(e){taskPools=JSON.parse(JSON.stringify(DEFAULT_TASK_POOLS));tasks={};}TASK_TIERS.forEach(function(t){if(!tasks[t.id])tasks[t.id]=[];});renderTaskPanel();}
+function saveTaskPools(){try{_cSet(TASK_POOL_KEY,JSON.stringify(taskPools));}catch(e){}}
+function saveTasks(){try{_cSet(TASK_KEY,JSON.stringify(tasks));}catch(e){}}
+function claimTask(tid,text){if(tasks[tid].find(function(t){return t.text===text&&!t.done;}))return;tasks[tid].unshift({id:Date.now(),text:text,done:false});saveTasks();renderTaskPanel();}
+function addCustomTask(tid,text){text=text.trim();if(!text)return false;tasks[tid].unshift({id:Date.now(),text:text,done:false});saveTasks();renderTaskPanel();return true;}
+function toggleTask(tid,tkid){var t=tasks[tid].find(function(t){return t.id===tkid;});if(t){t.done=!t.done;saveTasks();renderTaskPanel();}}
+function deleteTask(tid,tkid){tasks[tid]=tasks[tid].filter(function(t){return t.id!==tkid;});saveTasks();renderTaskPanel();}
+function clearDoneTasks(tid){tasks[tid]=tasks[tid].filter(function(t){return!t.done;});saveTasks();renderTaskPanel();}
+function renderTaskPanel(){
+var panel=document.getElementById('panel-task');panel.innerHTML='';
+TASK_TIERS.forEach(function(tier){
+var pool=taskPools[tier.id]||[];var list=tasks[tier.id]||[];var doneCount=list.filter(function(t){return t.done;}).length;var isEditing=taskEditingTier===tier.id;
+var card=document.createElement('div');card.className='reward-card';card.style.cssText='border-color:'+tier.color+'33;';
+var header=document.createElement('div');header.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;';
+var left=document.createElement('div');left.style.cssText='display:flex;align-items:center;gap:8px;';
+var titleEl=document.createElement('span');titleEl.style.cssText='font-family:monospace;font-size:13px;font-weight:500;color:'+tier.color+';';titleEl.textContent=tier.emoji+'  '+tier.label;left.appendChild(titleEl);
+if(list.length>0){var badge=document.createElement('span');badge.style.cssText='font-size:10px;padding:1px 7px;border-radius:10px;background:'+tier.bg+';color:'+tier.color+';';badge.textContent=(list.length-doneCount)+'/'+list.length;left.appendChild(badge);}
+header.appendChild(left);
+var editBtn2=document.createElement('button');editBtn2.className='btn-timer';editBtn2.style.cssText=isEditing?'font-size:13px;padding:0 16px;height:36px;border-radius:18px;background:var(--green);color:var(--bg);border-color:var(--green);':'font-size:13px;padding:0 16px;height:36px;border-radius:18px;';editBtn2.textContent=isEditing?'✓ 完成编辑':'✏️ 编辑任务池';
+editBtn2.onclick=(function(t){return function(){taskEditingTier=taskEditingTier===t.id?null:t.id;renderTaskPanel();};})(tier);
+header.appendChild(editBtn2);card.appendChild(header);
+if(isEditing){
+var hint2=document.createElement('p');hint2.style.cssText='font-size:11px;color:var(--hint);margin-bottom:8px;';hint2.textContent='每行一个任务';card.appendChild(hint2);
+var ta2=document.createElement('textarea');ta2.style.cssText='width:100%;min-height:100px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);resize:vertical;outline:none;line-height:1.7;';ta2.value=pool.join('\n');
+ta2.oninput=(function(tid){return function(){taskPools[tid]=ta2.value.split('\n').map(function(s){return s.trim();}).filter(Boolean);saveTaskPools();};})(tier.id);
+card.appendChild(ta2);
+}else{
+if(list.length>0){
+var ul=document.createElement('div');ul.style.cssText='margin-bottom:12px;';
+var sorted=list.filter(function(t){return!t.done;}).concat(list.filter(function(t){return t.done;}));
+sorted.forEach(function(task){
+var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);'+(task.done?'opacity:0.4;':'');
+var check=document.createElement('button');check.style.cssText='width:20px;height:20px;border-radius:50%;border:1.5px solid '+(task.done?tier.color:'var(--border)')+';background:'+(task.done?tier.bg:'transparent')+';flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:'+tier.color+';';check.textContent=task.done?'✓':'';
+check.onclick=(function(tid,tkid){return function(){toggleTask(tid,tkid);};})(tier.id,task.id);
+var lbl=document.createElement('span');lbl.style.cssText='flex:1;font-size:14px;color:var(--text);line-height:1.4;'+(task.done?'text-decoration:line-through;':'');lbl.textContent=task.text;
+var del=document.createElement('button');del.style.cssText='width:22px;height:22px;border:none;background:none;color:var(--hint);cursor:pointer;font-size:16px;line-height:1;flex-shrink:0;';del.textContent='×';del.onmouseenter=function(){del.style.color='var(--red)';};del.onmouseleave=function(){del.style.color='var(--hint)';};
+del.onclick=(function(tid,tkid){return function(){deleteTask(tid,tkid);};})(tier.id,task.id);
+row.appendChild(check);row.appendChild(lbl);row.appendChild(del);ul.appendChild(row);
+});
+card.appendChild(ul);
+if(doneCount>0){var clearBtn=document.createElement('button');clearBtn.className='ghost';clearBtn.style.cssText='font-size:11px;margin-bottom:10px;';clearBtn.textContent='清除已完成 ('+doneCount+')';clearBtn.onclick=(function(tid){return function(){clearDoneTasks(tid);};})(tier.id);card.appendChild(clearBtn);}
+}
+if(pool.length>0){
+var available=pool.filter(function(item){return!tasks[tier.id].find(function(t){return t.text===item&&!t.done;});});
+var drawBtn2=document.createElement('button');drawBtn2.className='reward-draw-btn';drawBtn2.style.cssText='background:'+tier.bg+';border-color:'+tier.color+'44;color:'+tier.color+';margin-bottom:10px;';drawBtn2.textContent=available.length?'🎲  随机抽取'+tier.label:'所有任务已领取';drawBtn2.disabled=!available.length;
+drawBtn2.onclick=(function(tid,av){return function(){var picked=av[Math.floor(Math.random()*av.length)];claimTask(tid,picked);};})(tier.id,available);
+card.appendChild(drawBtn2);
+}
+var inputRow=document.createElement('div');inputRow.style.cssText='display:flex;gap:8px;';
+var inp=document.createElement('input');inp.type='text';inp.placeholder='自定义任务…';inp.style.cssText='flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:13px;color:var(--text);outline:none;';
+inp.onfocus=(function(t){return function(){inp.style.borderColor=t.color+'88';};})(tier);inp.onblur=function(){inp.style.borderColor='var(--border)';};
+inp.onkeydown=(function(tid){return function(e){if(e.key==='Enter'&&addCustomTask(tid,inp.value))inp.value='';};})(tier.id);
+var addBtn2=document.createElement('button');addBtn2.style.cssText='padding:8px 14px;border-radius:8px;border:1px solid '+tier.color+'55;background:'+tier.bg+';color:'+tier.color+';font-size:18px;cursor:pointer;line-height:1;';addBtn2.textContent='+';
+addBtn2.onclick=(function(tid){return function(){if(addCustomTask(tid,inp.value))inp.value='';};})(tier.id);
+inputRow.appendChild(inp);inputRow.appendChild(addBtn2);card.appendChild(inputRow);
+}
+panel.appendChild(card);
+});}
+
+/* SOP */
+var LOG_KEY='my_sop_log_v1';
+var SOP_LIST_KEY='my_sop_list_v2';
+var SOP_ACTIVE_KEY='my_sop_active_idx';
+var SOP_INPUT_KEY='my_sop_inputs_v1';
+var SOP_SESSION_KEY='my_sop_session_v1';
+var sopLog=[],sopList=[],sopActiveListIdx=0,sopInputs={};
+function loadLog(){try{var s=_cGet(LOG_KEY);if(s)sopLog=JSON.parse(s);}catch(e){sopLog=[];}}
+function saveLog(){_cSet(LOG_KEY,JSON.stringify(sopLog));}
+function addLogEntry(sopName,stepTitle,inputText){sopLog.push({ts:Date.now(),sop:sopName,step:stepTitle,text:inputText});if(sopLog.length>500)sopLog=sopLog.slice(-500);saveLog();}
+function loadSopInputs(){try{var s=_cGet(SOP_INPUT_KEY);if(s)sopInputs=JSON.parse(s);}catch(e){sopInputs={};}}
+function saveSopInputs(){try{_cSet(SOP_INPUT_KEY,JSON.stringify(sopInputs));}catch(e){}}
+function stepNeedsInput(){return true;}
+
+var DEFAULT_SOPS=[
+{name:'起床 SOP',steps:[
+{id:1,time:'06:00',icon:'⏰',title:'起床',note:'关闭闹钟，立刻坐起来'},
+{id:2,time:'06:02',icon:'💧',title:'喝一杯水',note:'提前在床头放好，常温水'},
+{id:3,time:'06:05',icon:'🚿',title:'洗脸刷牙',note:'用冷水洗脸有助于清醒'},
+{id:4,time:'06:15',icon:'🧘',title:'拉伸 / 冥想',note:'5–10 分钟，不要看手机'},
+{id:5,time:'06:25',icon:'📓',title:'写晨间日记',note:'写今天 3 件最重要的事'},
+{id:6,time:'06:35',icon:'🍳',title:'准备早餐',note:'简单为主，营养均衡'},
+{id:7,time:'06:45',icon:'🍽',title:'吃早餐',note:'慢慢吃，不要看手机'},
+{id:8,time:'06:55',icon:'👗',title:'换装出发准备',note:'提前一晚准备好衣服更快'},
+{id:9,time:'07:00',icon:'🚀',title:'开始新的一天',note:''}
+]},
+{name:'家庭清洁 SOP',steps:[
+{id:1,time:'09:00',icon:'🚪',title:'玄关归位',note:'鞋子整齐、包包挂好、外套挂起来'},
+{id:2,time:'09:05',icon:'👕',title:'整理衣物',note:'检查需要洗的衣服，分类放入洗衣筒'},
+{id:3,time:'09:15',icon:'📝',title:'记录衣服',note:'记录今天穿着和衣橱状况'},
+{id:4,time:'09:25',icon:'🛋',title:'客厅整理',note:'沙发、茶几、地板上的杂物全部归位'},
+{id:5,time:'09:32',icon:'📱',title:'整理办公桌',note:'手机归位，桌上线放到屏幕后面'},
+{id:6,time:'09:37',icon:'🍽',title:'餐桌清理',note:'餐桌杂物归位，顺手擦干净'},
+{id:7,time:'09:52',icon:'🛏',title:'卧室整理',note:'床头、地板、衣物归位'},
+{id:8,time:'09:59',icon:'🛏',title:'整理床铺',note:'最好起床后即刻整理'},
+{id:9,time:'10:05',icon:'🍳',title:'擦微波炉',note:'顺便擦干净门把和内壁'},
+{id:10,time:'10:10',icon:'🗃',title:'擦办公室桌子',note:'桌面、屏幕及周边'},
+{id:11,time:'10:15',icon:'🐱',title:'清理椅子下头发',note:'办公室椅子底部的头发和灰尘'},
+{id:12,time:'10:20',icon:'🦷',title:'刷牙',note:'刷牙 2-3 分钟'},
+{id:13,time:'10:25',icon:'🚽',title:'盖好马桶',note:''},
+{id:14,time:'10:26',icon:'🚿',title:'关淋浴间的门',note:''},
+{id:15,time:'10:27',icon:'🚽',title:'清洁卫生间',note:'马桶、马桶盖、洗手台'},
+{id:16,time:'10:42',icon:'🌊',title:'清洁厨房',note:'台面、燃气灶、水槽'},
+{id:17,time:'10:57',icon:'🧹',title:'扫地 / 拖地',note:'先扫后拖，角落不要漏'},
+{id:18,time:'11:17',icon:'🧴',title:'擦镜子',note:'电视柜、镜子、窗台边缘'},
+{id:19,time:'11:27',icon:'🗃',title:'整理收纳',note:'不常用的放入收纳盒'},
+{id:20,time:'11:37',icon:'🪣',title:'倒垃圾换垃圾袋',note:'所有垃圾桶都倒掉'},
+{id:21,time:'11:42',icon:'✨',title:'检查成果',note:'走一圈确认每个区域'}
+]},
+{name:'周一早上',steps:[
+{id:1,time:'06:00',icon:'⏰',title:'起床',note:'关闭闹钟，立刻坐起来'},
+{id:2,time:'06:02',icon:'🐕',title:'开门放狗',note:'让狗出门活动'},
+{id:3,time:'06:05',icon:'🥚',title:'煮鸡蛋',note:'冷水下锅，大火烧开转小火 10 分钟'},
+{id:4,time:'06:08',icon:'🛏',title:'整理床铺',note:'起床后即刻整理，快速搭好'},
+{id:5,time:'06:13',icon:'🛁',title:'洗澡',note:'快洗，控制在 15 分钟内'},
+{id:6,time:'06:28',icon:'🚿',title:'洗脸刷牙',note:'冷水洗脸有助于清醒'},
+{id:7,time:'06:38',icon:'🐕',title:'关门关狗',note:'确认狗回到安全区域'},
+{id:8,time:'06:40',icon:'💼',title:'准备工作包',note:'电脑、充电器、证件、钥匙'},
+{id:9,time:'06:50',icon:'👗',title:'换装',note:'提前一晚准备好衣服更快'},
+{id:10,time:'07:00',icon:'🚀',title:'出发上班',note:'出门前确认钉钉、逃生卡等'}
+]},
+{name:'上班日',steps:[
+{id:1, time:'07:00',icon:'🏢',title:'到达 · 安顿',note:'打卡，放包，倒满一大杯水，调好座椅'},
+{id:2, time:'07:05',icon:'🥚',title:'吃早餐',note:'离开座位吃，不看屏幕'},
+{id:3, time:'07:20',icon:'🧠',title:'脑内清空',note:'把脑子里所有事情写下来，不用整理'},
+{id:4, time:'07:25',icon:'📌',title:'定今日一件事',note:'只选一件：今天做完这件事就算赢'},
+{id:5, time:'07:30',icon:'🔕',title:'专注 25 分钟',note:'关通知，只做那一件事，计时开始'},
+{id:6, time:'07:55',icon:'🚶',title:'休息 · 绕一圈',note:'站起来，在办公室走一圈，喝一口水'},
+{id:7, time:'08:00',icon:'🔕',title:'专注 25 分钟',note:'继续或换一件小任务'},
+{id:8, time:'08:25',icon:'👀',title:'休息 · 眼睛放松',note:'闭眼30秒，再看20米外的地方20秒，重复5次'},
+{id:9, time:'08:30',icon:'🔕',title:'专注 25 分钟',note:'第三块，可以处理邮件或消息'},
+{id:10,time:'08:55',icon:'☕',title:'长休息 · 补充能量',note:'吃点零食，倒热水，离开座位15分钟，不强迫思考'},
+{id:11,time:'09:10',icon:'🔕',title:'专注 25 分钟',note:'第四块'},
+{id:12,time:'09:35',icon:'💪',title:'休息 · 活动一下',note:'做10个深蹲或原地踏步1分钟，然后喝水'},
+{id:13,time:'09:40',icon:'🔕',title:'专注 25 分钟',note:'第五块'},
+{id:14,time:'10:05',icon:'🫁',title:'休息 · 深呼吸',note:'用鼻子吸气4秒，屏息4秒，嘴呼气4秒，做5次'},
+{id:15,time:'10:10',icon:'🔕',title:'专注 25 分钟',note:'第六块'},
+{id:16,time:'10:35',icon:'🌤',title:'长休息 · 户外或窗边',note:'站到窗边或走到户外，看看远处，晒一下太阳'},
+{id:17,time:'10:50',icon:'🔕',title:'专注 25 分钟',note:'第七块，接近午休节奏放慢也没关系'},
+{id:18,time:'11:15',icon:'🙆',title:'休息 · 放松肩颈',note:'双肩慢慢向上耸起，保持3秒，然后放松，重复5次。不要转头。'},
+{id:19,time:'11:20',icon:'🍱',title:'午餐',note:'离座，离屏幕，慢慢吃'},
+{id:21,time:'11:50',icon:'💧',title:'起来 · 过渡缓冲',note:'喝一大口水，慢慢站起来，不要直接开工'},
+{id:22,time:'12:25',icon:'📌',title:'定下午一件事',note:'下午能量低，选一件最简单的任务开始'},
+{id:23,time:'12:30',icon:'🔕',title:'专注 25 分钟',note:'第八块，下午第一块'},
+{id:24,time:'12:55',icon:'🤲',title:'休息 · 手腕放松',note:'手腕顺逆时针各转5圈，甩一甩，再喝水'},
+{id:25,time:'13:00',icon:'🔕',title:'专注 25 分钟',note:'第九块'},
+{id:26,time:'13:25',icon:'🚶',title:'休息 · 再绕一圈',note:'站起来走走，喝水，不看手机'},
+{id:27,time:'13:30',icon:'🔕',title:'专注 25 分钟',note:'第十块，可处理邮件消息'},
+{id:28,time:'13:55',icon:'✅',title:'收尾整理',note:'把今天完成的事情打勾，更新进度'},
+{id:29,time:'14:10',icon:'📓',title:'写明日计划',note:'写 1-3 件明天要做的事，越具体越好'},
+{id:30,time:'14:20',icon:'🧹',title:'整理桌面',note:'桌子归位，杯子带走，书包整理好'},
+{id:31,time:'14:30',icon:'🎉',title:'写下今天做到的事',note:'在下面输入框写1-3件，哪怕只是「今天没有摸鱼」也算'},
+{id:32,time:'14:55',icon:'🚪',title:'打卡下班',note:'确认带齐所有东西再走'}
+]},
+{name:'下班回家',steps:[
+{id:1, time:'15:00',icon:'🚪',title:'打卡离开',note:'确认带齐：电脑、充电器、证件、钥匙、水杯'},
+{id:2, time:'15:05',icon:'🚶',title:'步行/通勤',note:'不要立刻看手机，让大脑放空'},
+{id:3, time:'15:30',icon:'🏠',title:'到家 · 换装',note:'换上居家服，把工作状态放下'},
+{id:301,time:'15:32',icon:'🐕',title:'开门放狗',note:'让狗出门活动'},
+{id:4, time:'15:35',icon:'🐕',title:'陪狗狗',note:'遛狗或者陪玩 15 分钟'},
+{id:5, time:'15:50',icon:'💧',title:'喝水 · 补充能量',note:'喝一大杯水，吃点小零食'},
+{id:6, time:'15:55',icon:'📱',title:'处理私人消息',note:'集中处理微信、Gmail、Outlook，然后放下手机'},
+{id:7, time:'16:10',icon:'🧹',title:'今日家务',note:'周一扫地拖地 / 周二擦桌台面+倒垃圾 / 周三洗衣服 / 周四整理收纳 / 周五~周日随意'},
+{id:801,time:'16:38',icon:'🌀',title:'吸地板',note:'用吸尘器吸一遍，重点是沙发旁和床边'},
+{id:802,time:'16:39',icon:'🔌',title:'吸尘器放回充电',note:'用完放回充电座，下次才有电'},
+{id:8, time:'16:40',icon:'🛒',title:'确认晚餐食材',note:'看看冰箱，缺什么现在想好'},
+{id:9, time:'16:45',icon:'🍳',title:'准备晚餐',note:'开始做饭，可以听播客或音乐'},
+{id:901,time:'17:00',icon:'💊',title:'吃铁片',note:'空腹吃，配一杯果汁或维C片帮助吸收，不要跟茶/咖啡/牛奶一起'},
+{id:10,time:'17:30',icon:'🍽',title:'吃晚餐',note:'好好吃饭，不看手机'},
+{id:11,time:'18:00',icon:'🧽',title:'收拾厨房',note:'洗碗、擦台面、清理灶台'},
+{id:111,time:'18:10',icon:'🪣',title:'倒垃圾',note:'所有垃圾桶都倒，换好垃圾袋'},
+{id:12,time:'18:15',icon:'💑',title:'男朋友时间',note:'陪他，不用想其他事情'},
+{id:13,time:'19:15',icon:'🎯',title:'今晚自己的事',note:'写在下面，哪怕只是刷剧也算'},
+{id:14,time:'19:20',icon:'🛋',title:'自由放松时间',note:'刷剧、玩游戏、刷手机，不设限'},
+{id:15,time:'21:00',icon:'🚿',title:'洗澡',note:'控制在 15 分钟，洗完换好睡衣'},
+{id:16,time:'21:20',icon:'✂️',title:'剪指甲',note:'洗澡后指甲软，顺手剪掉'},
+{id:17,time:'21:25',icon:'🧴',title:'护肤 / 刷牙',note:'护肤流程 + 刷牙，完成后不再吃东西'},
+{id:18,time:'21:35',icon:'📋',title:'明日准备',note:'包包整理好，明天的衣服放出来'},
+{id:19,time:'21:45',icon:'📵',title:'手机放到充电',note:'把手机放到离床稍远的地方充电'},
+{id:20,time:'21:50',icon:'🌙',title:'放松入睡准备',note:'躺下，可以听音频或看实体书，不看屏幕'},
+{id:21,time:'22:00',icon:'😴',title:'睡觉',note:'关灯，明天继续'}
+]}
+];
+
+var sopActive=false,sopCurrentIdx=0,sopPaused=false,sopRemaining=0,sopStepTotal=0;
+var sopInterval=null,sopOvertime=false,sopOvertimeStart=0,sopOvertimeElapsed=0,sopStart=0;
+
+function saveSopSession(){
+if(!sopActive){_cDel(SOP_SESSION_KEY);return;}
+_cSet(SOP_SESSION_KEY,JSON.stringify({listIdx:sopActiveListIdx,stepIdx:sopCurrentIdx,stepStart:sopStart,overtime:sopOvertime,overtimeStart:sopOvertimeStart,paused:sopPaused}));
+}
+</script>
+
+<script>
+function restoreSopSession(){
+try{
+var s=_cGet(SOP_SESSION_KEY);if(!s)return;
+var sess=JSON.parse(s);if(!sess||sess.listIdx===undefined)return;
+sopActiveListIdx=sess.listIdx;
+var sop=currentSOP();if(!sop)return;
+var idx=sess.stepIdx;if(idx<0||idx>=sop.steps.length)return;
+var now=Date.now();
+if(sess.overtime){
+sopActive=true;sopCurrentIdx=idx;sopStepTotal=sop.steps[idx].duration;sopRemaining=0;sopOvertime=true;sopOvertimeStart=sess.overtimeStart;sopOvertimeElapsed=(now-sess.overtimeStart)/1000;sopPaused=false;sopInterval=setInterval(sopTick,200);
+}else{
+var elapsed=(now-sess.stepStart)/1000;var curIdx=idx;var stepDur=sop.steps[idx].duration;
+while(elapsed>=stepDur&&curIdx<sop.steps.length-1){elapsed-=stepDur;curIdx++;stepDur=sop.steps[curIdx].duration;}
+sopActive=true;sopCurrentIdx=curIdx;sopStepTotal=stepDur;
+if(elapsed>=stepDur){sopRemaining=0;sopOvertime=true;sopOvertimeStart=now-(elapsed-stepDur)*1000;sopOvertimeElapsed=elapsed-stepDur;}
+else{sopRemaining=stepDur-elapsed;sopOvertime=false;sopStart=now-elapsed*1000;}
+sopPaused=false;sopInterval=setInterval(sopTick,200);
+}
+}catch(e){_cDel(SOP_SESSION_KEY);}
+}
+
+function calcDurations(steps){function t2m(t){var p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}for(var i=0;i<steps.length;i++){steps[i].duration=i<steps.length-1?Math.max(60,(t2m(steps[i+1].time)-t2m(steps[i].time))*60):60;}}
+function currentSOP(){return sopList[sopActiveListIdx];}
+function fmtSecs(s){s=Math.ceil(s);var m=Math.floor(s/60),sec=s%60;return String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');}
+
+function loadSOP(){
+try{
+var s=_cGet(SOP_LIST_KEY);sopList=s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_SOPS));
+var ai=_cGet(SOP_ACTIVE_KEY);sopActiveListIdx=ai?parseInt(ai):0;
+var xbi=-1;sopList.forEach(function(s,i){if(s.name==='下班回家')xbi=i;});
+if(xbi===-1){sopList.push(JSON.parse(JSON.stringify(DEFAULT_SOPS[4])));}
+var mi=-1;sopList.forEach(function(s,i){if(s.name==='周一早上')mi=i;});
+if(mi===-1){sopList.push(JSON.parse(JSON.stringify(DEFAULT_SOPS[2])));}
+else{sopList[mi]=JSON.parse(JSON.stringify(DEFAULT_SOPS[2]));}
+var wi=-1;sopList.forEach(function(s,i){if(s.name==='上班日')wi=i;});
+if(wi===-1){sopList.push(JSON.parse(JSON.stringify(DEFAULT_SOPS[3])));}
+else{sopList[wi]=JSON.parse(JSON.stringify(DEFAULT_SOPS[3]));}
+_cSet(SOP_LIST_KEY,JSON.stringify(sopList));
+}catch(e){sopList=JSON.parse(JSON.stringify(DEFAULT_SOPS));sopActiveListIdx=0;}
+sopList.forEach(function(sop){calcDurations(sop.steps);});renderSOP();
+}
+function saveSOP(){try{_cSet(SOP_LIST_KEY,JSON.stringify(sopList));_cSet(SOP_ACTIVE_KEY,String(sopActiveListIdx));}catch(e){}}
+function startSOP(fromIdx){sopActive=true;sopPaused=false;beginStep(fromIdx||0);}
+function beginStep(idx){
+var sop=currentSOP();
+if(sop){var step=sop.steps[idx];var inputKey=sopActiveListIdx+'_'+step.id;var txt=sopInputs[inputKey];if(txt&&txt.trim())addLogEntry(sop.name,step.title,txt.trim());}
+sopCurrentIdx=idx;sopStepTotal=currentSOP().steps[idx].duration;sopRemaining=sopStepTotal;sopOvertime=false;sopOvertimeElapsed=0;sopPaused=false;sopStart=Date.now();clearInterval(sopInterval);sopInterval=setInterval(sopTick,200);saveSopSession();renderSOP();
+}
+function sopTick(){
+if(sopPaused)return;
+if(sopOvertime){sopOvertimeElapsed=(Date.now()-sopOvertimeStart)/1000;updateSOPTimer();}
+else{var total=(Date.now()-sopStart)/1000;sopRemaining=Math.max(0,sopStepTotal-total);updateSOPTimer();if(sopRemaining<=0){sopOvertime=true;sopOvertimeStart=Date.now();clearInterval(sopInterval);sopInterval=setInterval(sopTick,200);renderSOP();}}
+}
+function pauseSOP(){
+if(!sopPaused){sopPaused=true;clearInterval(sopInterval);sopInterval=null;renderSOP();}
+else{sopPaused=false;if(sopOvertime){sopOvertimeStart=Date.now()-sopOvertimeElapsed*1000;}else{sopStart=Date.now()-(sopStepTotal-sopRemaining)*1000;}sopInterval=setInterval(sopTick,200);saveSopSession();renderSOP();}
+}
+function skipSOP(){clearInterval(sopInterval);sopInterval=null;var steps=currentSOP().steps;if(sopCurrentIdx<steps.length-1){beginStep(sopCurrentIdx+1);}else{sopActive=false;renderSOP();}}
+function stopSOP(){clearInterval(sopInterval);sopInterval=null;sopActive=false;sopPaused=false;sopCurrentIdx=0;saveSopSession();renderSOP();}
+function updateSOPTimer(){
+var el=document.getElementById('sop-timer'),ring=document.getElementById('sop-ring');if(!el)return;
+var CIRC=2*Math.PI*54;
+if(sopOvertime){el.textContent='00:00';if(ring){ring.setAttribute('stroke-dashoffset',CIRC.toFixed(2));ring.setAttribute('stroke','var(--red)');}var ot=document.getElementById('sop-overtime');if(ot)ot.textContent='+'+fmtSecs(sopOvertimeElapsed);}
+else{el.textContent=fmtSecs(sopRemaining);if(ring){ring.setAttribute('stroke-dashoffset',(CIRC*(1-sopRemaining/sopStepTotal)).toFixed(2));ring.setAttribute('stroke','var(--green)');}}
+}
+
+function injectChoreNote(){
+var dayNames=['周日','周一','周二','周三','周四','周五','周六'];
+var chores=[
+{title:'补漏 / 休息',note:'周日在男友家，看看哪里没做到，或者直接休息'},
+{title:'扫地 + 拖地',note:'先扫后拖，角落不要漏，大概 20 分钟'},
+{title:'擦桌台面 + 倒垃圾',note:'所有桌面台面擦一遍，顺便倒所有垃圾桶'},
+{title:'洗衣服',note:'把脏衣服放进洗衣机，设好程序，不用等'},
+{title:'整理收纳',note:'把乱放的东西全部归位，每个东西有自己的地方'},
+{title:'👑 公主日 · 不想做就不做',note:'周五自己家，家务可以跳过'},
+{title:'👑 公主日 · 不想做就不做',note:'周六自己家，家务可以跳过'}
+];
+var sop=sopList.find(function(s){return s.name==='下班回家';});if(!sop)return;
+var step=sop.steps.find(function(s){return s.id===7;});if(!step)return;
+var day=new Date().getDay();step.title=chores[day].title;step.note='（'+dayNames[day]+'）'+chores[day].note;
+}
+
+function renderSOP(){
+injectChoreNote();
+var panel=document.getElementById('panel-sop');if(!panel)return;panel.innerHTML='';
+var wrap=document.createElement('div');wrap.style.cssText='width:100%;max-width:420px;';
+var officeMode=(currentTheme==='office');
+if(officeMode){
+// force 上班日
+var wi2=sopList.findIndex(function(s){return s.name==='上班日';});
+if(wi2>=0)sopActiveListIdx=wi2;
+}
+var selEditing=!!sopList._selEditing;
+var selBar=document.createElement('div');selBar.className='sop-selbar';selBar.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;';
+if(officeMode){selBar.style.display='none';}
+sopList.forEach(function(sop,i){
+var chip=document.createElement('div');chip.style.cssText='flex-shrink:0;display:flex;align-items:center;gap:4px;';chip.dataset.idx=i;
+if(selEditing){
+var btnL=document.createElement('button');btnL.textContent='←';btnL.style.cssText='width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:14px;cursor:pointer;flex-shrink:0;';btnL.disabled=(i===0);btnL.style.opacity=i===0?'0.3':'1';
+btnL.onclick=(function(idx){return function(){var m=sopList.splice(idx,1)[0];sopList.splice(idx-1,0,m);sopActiveListIdx=idx-1;saveSOP();renderSOP();};})(i);
+var label=document.createElement('button');var active=(i===sopActiveListIdx);label.style.cssText='flex-shrink:0;padding:7px 12px;border-radius:20px;border:1px solid '+(active?'var(--text)':'var(--border)')+';background:'+(active?'var(--text)':'transparent')+';color:'+(active?'var(--bg)':'var(--muted)')+';font-size:13px;cursor:pointer;white-space:nowrap;';label.textContent=sop.name;
+label.onclick=(function(idx){return function(){if(sopActive)stopSOP();sopActiveListIdx=idx;saveSOP();renderSOP();};})(i);
+var btnR=document.createElement('button');btnR.textContent='→';btnR.style.cssText='width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:14px;cursor:pointer;flex-shrink:0;';btnR.disabled=(i===sopList.length-1);btnR.style.opacity=i===sopList.length-1?'0.3':'1';
+btnR.onclick=(function(idx){return function(){var m=sopList.splice(idx,1)[0];sopList.splice(idx+1,0,m);sopActiveListIdx=idx+1;saveSOP();renderSOP();};})(i);
+chip.appendChild(btnL);chip.appendChild(label);chip.appendChild(btnR);
+}else{
+var btn2=document.createElement('button');var active2=(i===sopActiveListIdx);btn2.style.cssText='flex-shrink:0;padding:7px 14px;border-radius:20px;border:1px solid '+(active2?'var(--text)':'var(--border)')+';background:'+(active2?'var(--text)':'transparent')+';color:'+(active2?'var(--bg)':'var(--muted)')+';font-size:13px;cursor:pointer;white-space:nowrap;';btn2.textContent=sop.name;
+btn2.onclick=(function(idx){return function(){if(sopActive)stopSOP();sopActiveListIdx=idx;saveSOP();renderSOP();};})(i);
+chip.appendChild(btn2);
+}
+selBar.appendChild(chip);
+});
+var addSopBtn=document.createElement('button');addSopBtn.style.cssText='flex-shrink:0;width:34px;height:34px;border-radius:50%;border:1px dashed var(--border);background:transparent;color:var(--hint);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;';addSopBtn.textContent='+';
+addSopBtn.onclick=function(){var name=prompt('新 SOP 名称：');if(!name||!name.trim())return;sopList.push({name:name.trim(),steps:[{id:1,time:'09:00',icon:'✅',title:'第一步',note:''}]});sopList.forEach(function(s){calcDurations(s.steps);});sopActiveListIdx=sopList.length-1;saveSOP();renderSOP();};
+selBar.appendChild(addSopBtn);
+var editOrderBtn=document.createElement('button');editOrderBtn.style.cssText='flex-shrink:0;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:'+(selEditing?'var(--text)':'transparent')+';color:'+(selEditing?'var(--bg)':'var(--hint)')+';font-size:12px;cursor:pointer;white-space:nowrap;';editOrderBtn.textContent=selEditing?'完成':'排序';
+editOrderBtn.onclick=function(){sopList._selEditing=!sopList._selEditing;renderSOP();};
+selBar.appendChild(editOrderBtn);
+wrap.appendChild(selBar);
+
+if(!sopActive){
+var sop=currentSOP();var isEditing=!!sop._editing;
+var totalSecs=sop.steps.reduce(function(sum,s){return sum+(s.duration||0);},0);
+var tH=Math.floor(totalSecs/3600),tM=Math.floor((totalSecs%3600)/60);
+var tStr=tH>0?tH+'小时'+tM+'分钟':tM+'分钟';
+var now2=new Date(),nowMins=now2.getHours()*60+now2.getMinutes();
+function stepMins(s){var p=s.time.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
+function stepEndMins(step,idx){var nextStep=sop.steps[idx+1];if(nextStep)return stepMins(nextStep);return stepMins(step)+Math.round((step.duration||60)/60);}
+var displaySteps=sop.steps;
+if(!isEditing||officeMode){var future=[],past=[];sop.steps.forEach(function(s,i){(stepEndMins(s,i)<=nowMins?past:future).push(s);});displaySteps=future.concat(past);}
+var idleHeader=document.createElement('div');idleHeader.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;';
+var idleTitle=document.createElement('div');idleTitle.innerHTML='<span style="font-family:monospace;font-size:12px;color:var(--hint);">'+sop.steps.length+' 个步骤 · 共 '+tStr+'</span>';
+var editToggle=document.createElement('button');editToggle.className='btn-timer';editToggle.style.cssText=isEditing?'font-size:13px;padding:0 16px;height:36px;border-radius:18px;background:var(--green);color:var(--bg);border-color:var(--green);':'font-size:13px;padding:0 16px;height:36px;border-radius:18px;';editToggle.textContent=isEditing?'✓ 完成编辑':'✏️ 编辑步骤';editToggle.onclick=function(){sop._editing=!sop._editing;renderSOP();};
+if(officeMode)editToggle.style.display='none';
+idleHeader.appendChild(idleTitle);idleHeader.appendChild(editToggle);wrap.appendChild(idleHeader);
+displaySteps.forEach(function(step){
+var isPast=(!isEditing&&stepEndMins(step,sop.steps.indexOf(step))<=nowMins);
+var realIdx=sop.steps.indexOf(step);
+var row=document.createElement('div');row.dataset.rowidx=realIdx;
+row.style.cssText='display:flex;align-items:center;gap:8px;padding:11px 12px;margin-bottom:8px;border-radius:12px;background:var(--surface);border:1px solid var(--border);'+(isPast?'opacity:0.38;':'');
+if(isEditing){
+var delBtn=document.createElement('button');delBtn.style.cssText='flex-shrink:0;width:24px;height:24px;border-radius:50%;border:1px solid var(--border);background:none;color:var(--hint);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;';delBtn.textContent='×';delBtn.onclick=(function(idx){return function(){sop.steps.splice(idx,1);calcDurations(sop.steps);saveSOP();renderSOP();};})(realIdx);
+var iconInp=document.createElement('input');iconInp.type='text';iconInp.value=step.icon;iconInp.style.cssText='width:36px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:7px;padding:4px;background:var(--bg);color:var(--text);outline:none;flex-shrink:0;';iconInp.oninput=(function(s){return function(){s.icon=iconInp.value;saveSOP();};})(step);
+var titleInp=document.createElement('input');titleInp.type='text';titleInp.value=step.title;titleInp.style.cssText='flex:1;min-width:0;font-size:13px;font-weight:500;border:1px solid var(--border);border-radius:7px;padding:5px 8px;background:var(--bg);color:var(--text);outline:none;';titleInp.onblur=(function(s){return function(){s.title=titleInp.value;saveSOP();};})(step);
+var timeInp=document.createElement('input');timeInp.type='time';timeInp.value=step.time;timeInp.style.cssText='font-size:12px;border:1px solid var(--border);border-radius:7px;padding:5px 4px;background:var(--bg);color:var(--text);outline:none;width:88px;flex-shrink:0;';timeInp.onblur=(function(s){return function(){if(/^[0-9]{2}:[0-9]{2}$/.test(timeInp.value)){s.time=timeInp.value;calcDurations(sop.steps);saveSOP();}};})(step);
+var noteInp=document.createElement('input');noteInp.type='text';noteInp.value=step.note||'';noteInp.placeholder='备注';noteInp.style.cssText='flex:1;min-width:0;font-size:11px;border:1px solid var(--border);border-radius:7px;padding:4px 7px;background:var(--bg);color:var(--muted);outline:none;';noteInp.onblur=(function(s){return function(){s.note=noteInp.value;saveSOP();};})(step);
+var ef=document.createElement('div');ef.style.cssText='flex:1;display:flex;flex-direction:column;gap:5px;min-width:0;';var tl=document.createElement('div');tl.style.cssText='display:flex;gap:5px;align-items:center;';tl.appendChild(iconInp);tl.appendChild(titleInp);tl.appendChild(timeInp);ef.appendChild(tl);ef.appendChild(noteInp);row.appendChild(delBtn);row.appendChild(ef);
+}else{
+var handle=document.createElement('div');handle.style.cssText='flex-shrink:0;width:20px;height:32px;display:flex;align-items:center;justify-content:center;cursor:grab;color:var(--hint);font-size:14px;';handle.textContent='⠿';
+var num=document.createElement('div');num.style.cssText='width:20px;height:20px;border-radius:50%;background:var(--bg);border:1px solid var(--border);font-size:10px;color:var(--hint);display:flex;align-items:center;justify-content:center;flex-shrink:0;';num.textContent=realIdx+1;
+var icn=document.createElement('span');icn.style.cssText='font-size:16px;flex-shrink:0;';icn.textContent=step.icon;
+if(officeMode)icn.style.display='none';
+var lbl=document.createElement('span');lbl.style.cssText='font-size:13px;font-weight:500;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';lbl.textContent=step.title;
+var tWrap=document.createElement('div');tWrap.style.cssText='flex-shrink:0;';
+var tBtn=document.createElement('button');tBtn.style.cssText='font-size:12px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:5px 8px;cursor:pointer;min-width:60px;text-align:center;';tBtn.textContent=step.time;
+tBtn.onclick=(function(s,tw,tb){return function(e){e.stopPropagation();var inp2=document.createElement('input');inp2.type='time';inp2.value=s.time;inp2.style.cssText='font-size:12px;color:var(--text);background:var(--bg);border:1px solid var(--green);border-radius:7px;padding:5px 4px;width:90px;outline:none;';tw.replaceChild(inp2,tb);inp2.focus();inp2.onblur=function(){if(/^[0-9]{2}:[0-9]{2}$/.test(inp2.value)){s.time=inp2.value;calcDurations(sop.steps);saveSOP();}renderSOP();};inp2.onkeydown=function(e){if(e.key==='Enter')inp2.blur();};};})(step,tWrap,tBtn);tWrap.appendChild(tBtn);
+var playBtn=document.createElement('button');playBtn.style.cssText='flex-shrink:0;width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;';playBtn.textContent='▶';playBtn.onclick=(function(idx){return function(){startSOP(idx);};})(realIdx);
+row.appendChild(handle);row.appendChild(num);row.appendChild(icn);row.appendChild(lbl);row.appendChild(tWrap);row.appendChild(playBtn);
+(function(fromRealIdx,rowEl){
+handle.addEventListener('mousedown',function(e){
+if(e.button!==0)return;e.preventDefault();var startY=e.clientY,didDrag=false;
+var onMove=function(e2){if(!didDrag&&Math.abs(e2.clientY-startY)>6){didDrag=true;rowEl.style.opacity='0.5';}if(!didDrag)return;var el2=document.elementFromPoint(e2.clientX,e2.clientY);var target=el2&&el2.closest&&el2.closest('[data-rowidx]');if(target){var toIdx=parseInt(target.dataset.rowidx);if(!isNaN(toIdx)&&toIdx!==fromRealIdx){var moved=sop.steps.splice(fromRealIdx,1)[0];sop.steps.splice(toIdx,0,moved);calcDurations(sop.steps);saveSOP();renderSOP();}}};
+var onUp=function(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);rowEl.style.opacity='1';};
+document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);
+});
+})(realIdx,row);
+}
+wrap.appendChild(row);
+if(!isEditing&&stepNeedsInput()){
+var inputKey=sopActiveListIdx+'_'+step.id;
+var inputWrap=document.createElement('div');inputWrap.style.cssText='margin:-4px 0 8px 0;padding:0 12px 10px;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;margin-top:-10px;';
+var stepInp=document.createElement('input');stepInp.type='text';stepInp.placeholder='在这里写下具体内容…';stepInp.value=sopInputs[inputKey]||'';stepInp.style.cssText='width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:13px;color:var(--text);outline:none;';
+stepInp.onfocus=function(){stepInp.style.borderColor='var(--green)';};stepInp.onblur=function(){stepInp.style.borderColor='var(--border)';};
+stepInp.oninput=(function(k){return function(){sopInputs[k]=stepInp.value;saveSopInputs();};})(inputKey);
+inputWrap.appendChild(stepInp);wrap.appendChild(inputWrap);
+}
+});
+if(isEditing){var addStepBtn=document.createElement('button');addStepBtn.style.cssText='width:100%;padding:12px;border-radius:12px;border:1.5px dashed var(--border);background:transparent;color:var(--hint);font-size:14px;cursor:pointer;margin-bottom:8px;';addStepBtn.textContent='+ 添加步骤';addStepBtn.onclick=function(){var ls=sop.steps[sop.steps.length-1],lt=ls?ls.time:'09:00',p=lt.split(':'),nm=parseInt(p[0])*60+parseInt(p[1])+10,nh=Math.floor(nm/60),ns=nm%60;sop.steps.push({id:Date.now(),time:String(nh).padStart(2,'0')+':'+String(ns).padStart(2,'0'),icon:'✅',title:'新步骤',note:''});calcDurations(sop.steps);saveSOP();renderSOP();};wrap.appendChild(addStepBtn);}
+if(!isEditing){var startBtn=document.createElement('button');startBtn.className='reward-draw-btn';startBtn.style.cssText='margin-top:4px;background:var(--text);color:var(--bg);border-color:var(--text);font-size:15px;';startBtn.textContent='▶  从第一项开始';startBtn.onclick=function(){startSOP(0);};wrap.appendChild(startBtn);}
+}else{
+var sop2=currentSOP();var step2=sop2.steps[sopCurrentIdx];var CIRC=2*Math.PI*54;
+var rWrap=document.createElement('div');rWrap.style.cssText='display:flex;flex-direction:column;align-items:center;margin-bottom:16px;';
+if(officeMode){
+var plainTimer=document.createElement('div');plainTimer.id='sop-timer';plainTimer.style.cssText='font-family:"DM Mono",monospace;font-size:24px;font-weight:400;color:'+(sopOvertime?'var(--red)':'var(--hint)')+';letter-spacing:0.04em;margin-bottom:4px;';plainTimer.textContent=sopOvertime?'00:00':fmtSecs(sopRemaining);
+rWrap.appendChild(plainTimer);
+// invisible ring stub so updateSOPTimer doesn't break
+var ringStub=document.createElementNS('http://www.w3.org/2000/svg','circle');ringStub.setAttribute('id','sop-ring');document.body.appendChild(ringStub);
+}else{
+var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('width','140');svg.setAttribute('height','140');svg.setAttribute('viewBox','0 0 140 140');
+var bgC=document.createElementNS('http://www.w3.org/2000/svg','circle');bgC.setAttribute('cx','70');bgC.setAttribute('cy','70');bgC.setAttribute('r','54');bgC.setAttribute('fill','none');bgC.setAttribute('stroke','var(--border)');bgC.setAttribute('stroke-width','6');
+var fgC=document.createElementNS('http://www.w3.org/2000/svg','circle');fgC.setAttribute('cx','70');fgC.setAttribute('cy','70');fgC.setAttribute('r','54');fgC.setAttribute('fill','none');fgC.setAttribute('stroke',sopOvertime?'var(--red)':'var(--green)');fgC.setAttribute('stroke-width','6');fgC.setAttribute('stroke-linecap','round');fgC.setAttribute('stroke-dasharray',CIRC.toFixed(2));fgC.setAttribute('stroke-dashoffset',sopOvertime?CIRC.toFixed(2):'0');fgC.setAttribute('transform','rotate(-90 70 70)');fgC.setAttribute('id','sop-ring');
+var tT=document.createElementNS('http://www.w3.org/2000/svg','text');tT.setAttribute('x','70');tT.setAttribute('y','64');tT.setAttribute('text-anchor','middle');tT.setAttribute('font-family','DM Mono,monospace');tT.setAttribute('font-size','26');tT.setAttribute('fill',sopOvertime?'var(--red)':'var(--text)');tT.setAttribute('id','sop-timer');tT.textContent=sopOvertime?'00:00':fmtSecs(sopRemaining);
+var iT=document.createElementNS('http://www.w3.org/2000/svg','text');iT.setAttribute('x','70');iT.setAttribute('y','92');iT.setAttribute('text-anchor','middle');iT.setAttribute('font-size','22');iT.textContent=step2.icon;
+svg.appendChild(bgC);svg.appendChild(fgC);svg.appendChild(tT);svg.appendChild(iT);rWrap.appendChild(svg);
+}
+var stEl=document.createElement('div');stEl.style.cssText='font-size:20px;font-weight:500;color:var(--text);margin-top:8px;';stEl.textContent=step2.title;rWrap.appendChild(stEl);
+if(officeMode&&snEl)snEl.style.fontSize='12px';
+if(sopOvertime){var otEl=document.createElement('div');otEl.id='sop-overtime';otEl.style.cssText='font-size:22px;color:var(--red);margin-top:8px;font-weight:500;text-align:center;';otEl.textContent='+'+fmtSecs(sopOvertimeElapsed);rWrap.appendChild(otEl);}
+if(step2.note){var snEl=document.createElement('div');snEl.style.cssText='font-size:13px;color:var(--hint);margin-top:4px;text-align:center;';snEl.textContent=step2.note;rWrap.appendChild(snEl);}
+var activeInputKey=sopActiveListIdx+'_'+step2.id;
+if(sopInputs[activeInputKey]){var savedInp=document.createElement('div');savedInp.style.cssText='margin-top:10px;padding:10px 16px;background:var(--surface);border:1px solid var(--green);border-radius:10px;font-size:15px;font-weight:500;color:var(--text);text-align:center;max-width:280px;';savedInp.textContent=sopInputs[activeInputKey];rWrap.appendChild(savedInp);}
+var scEl=document.createElement('div');scEl.style.cssText='font-size:11px;color:var(--hint);margin-top:6px;';scEl.textContent=(sopCurrentIdx+1)+' / '+sop2.steps.length;rWrap.appendChild(scEl);
+wrap.appendChild(rWrap);
+var ctrlRow=document.createElement('div');ctrlRow.style.cssText='display:flex;gap:10px;justify-content:center;margin-bottom:16px;';
+var stopBtn=document.createElement('button');stopBtn.className='btn-timer';stopBtn.textContent='停止';stopBtn.onclick=stopSOP;
+var pauseBtn=document.createElement('button');pauseBtn.className='btn-timer primary';pauseBtn.textContent=sopPaused?'▶ 继续':'⏸ 暂停';pauseBtn.onclick=pauseSOP;
+var skipBtn=document.createElement('button');skipBtn.className='btn-timer';skipBtn.textContent='下一项 →';skipBtn.onclick=skipSOP;if(sopCurrentIdx>=sop2.steps.length-1)skipBtn.disabled=true;
+ctrlRow.appendChild(stopBtn);ctrlRow.appendChild(pauseBtn);ctrlRow.appendChild(skipBtn);wrap.appendChild(ctrlRow);
+var mList=document.createElement('div');
+sop2.steps.forEach(function(s,i){var isPast=i<sopCurrentIdx,isCur=i===sopCurrentIdx;var r=document.createElement('div');r.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;border-radius:10px;border:1px solid '+(isCur?'var(--green)':'var(--border)')+';background:'+(isCur?'rgba(90,158,110,0.08)':'var(--surface)')+';opacity:'+(isPast?'0.4':'1')+';';var dot=document.createElement('div');
+if(officeMode){dot.style.cssText='width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;background:'+(isCur?'var(--text)':'transparent')+';border:1px solid '+(isCur?'var(--text)':'var(--border)')+';color:'+(isCur?'var(--bg)':'var(--hint)')+';font-weight:500;';dot.textContent=isPast?'·':(i+1);}
+else{dot.style.cssText='width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;background:'+(isPast||isCur?'var(--green)':'var(--bg)')+';border:1.5px solid '+(isCur||isPast?'var(--green)':'var(--border)')+';color:var(--bg);font-weight:500;';dot.textContent=isPast?'✓':(i+1);}var ll=document.createElement('span');ll.style.cssText='font-size:13px;color:var(--text);flex:1;font-weight:'+(isCur?'500':'400')+';';ll.textContent=officeMode?s.title:s.icon+'  '+s.title;var tm=document.createElement('span');tm.style.cssText='font-size:11px;color:var(--hint);';tm.textContent=s.time;r.appendChild(dot);r.appendChild(ll);r.appendChild(tm);mList.appendChild(r);});
+wrap.appendChild(mList);setTimeout(updateSOPTimer,0);
+}
+panel.appendChild(wrap);
+}
+
+function thisWeekStart(){var d=new Date();d.setHours(0,0,0,0);var day=d.getDay();var diff=day===0?-6:1-day;d.setDate(d.getDate()+diff);return d.getTime();}
+function renderLogPanel(){
+var panel=document.getElementById('panel-log');if(!panel)return;panel.innerHTML='';
+var wrap=document.createElement('div');wrap.style.cssText='width:100%;max-width:420px;';
+var heading=document.createElement('div');heading.style.cssText='font-family:monospace;font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px;';heading.textContent='📖 本周完成记录';
+var sub=document.createElement('div');sub.style.cssText='font-size:11px;color:var(--hint);margin-bottom:20px;';sub.textContent='有输入内容的步骤';
+wrap.appendChild(heading);wrap.appendChild(sub);
+var weekStart=thisWeekStart();var weekEntries=sopLog.filter(function(e){return e.ts>=weekStart&&e.text&&e.text.trim();});
+if(weekEntries.length===0){var empty=document.createElement('div');empty.style.cssText='text-align:center;color:var(--hint);font-size:14px;padding:40px 0;';empty.textContent='这周还没有记录';wrap.appendChild(empty);panel.appendChild(wrap);return;}
+var days={};weekEntries.forEach(function(e){var d=new Date(e.ts);var key=d.toLocaleDateString('zh-CN',{weekday:'long',month:'numeric',day:'numeric'});if(!days[key])days[key]=[];days[key].push(e);});
+var dayKeys=Object.keys(days).sort(function(a,b){return days[b][0].ts-days[a][0].ts;});
+dayKeys.forEach(function(dayKey){
+var dayHeader=document.createElement('div');dayHeader.style.cssText='font-family:monospace;font-size:11px;color:var(--hint);letter-spacing:0.08em;margin:16px 0 8px;';dayHeader.textContent=dayKey;wrap.appendChild(dayHeader);
+days[dayKey].slice().reverse().forEach(function(e){
+var card2=document.createElement('div');card2.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;';
+var meta=document.createElement('div');meta.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
+var sopTag=document.createElement('span');sopTag.style.cssText='font-size:11px;color:var(--hint);';sopTag.textContent=e.sop+' · '+e.step;
+var timeTag=document.createElement('span');timeTag.style.cssText='font-family:monospace;font-size:11px;color:var(--hint);';timeTag.textContent=new Date(e.ts).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+meta.appendChild(sopTag);meta.appendChild(timeTag);
+var text=document.createElement('div');text.style.cssText='font-size:15px;font-weight:500;color:var(--text);line-height:1.4;';text.textContent=e.text;
+card2.appendChild(meta);card2.appendChild(text);wrap.appendChild(card2);
+});
+});
+var clearBtn=document.createElement('button');clearBtn.className='ghost';clearBtn.style.cssText='font-size:12px;margin-top:16px;';clearBtn.textContent='清除本周记录';clearBtn.onclick=function(){sopLog=sopLog.filter(function(e){return e.ts<weekStart;});saveLog();renderLogPanel();};
+wrap.appendChild(clearBtn);panel.appendChild(wrap);
+}
+
+(async function(){
+try{await _initStorage();}catch(e){}
+loadTabOrder();
+renderNav();
+loadCounter();
+loadRewards();
+loadTasks();
+loadSOP();
+restoreSopSession();
+loadSopInputs();
+loadLog();
+renderLogPanel();
+})();
+</script>
+</body>
+</html>
