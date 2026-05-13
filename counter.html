@@ -55,12 +55,12 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
 .reward-draw-btn:active:not(:disabled){transform:scale(0.97);opacity:0.82}.reward-draw-btn:disabled{opacity:0.4;cursor:default}
 .sop-selbar::-webkit-scrollbar{display:none}
 .sop-selbar{scrollbar-width:none;-ms-overflow-style:none}
-/* Office minimal theme */
-html.theme-office{--bg:#fafafa;--surface:#ffffff;--border:rgba(0,0,0,0.06);--text:#888;--muted:#bbb;--hint:#d4d4d4;--green:#7cb97c;--red:#d08080;--orange:#c8a060}
+/* Office minimal dark theme */
+html.theme-office{--bg:#0f1117;--surface:#1a1d27;--border:rgba(255,255,255,0.08);--text:#c8ccd8;--muted:#5a5f72;--hint:#2a2d3a;--green:#5db87e;--red:#c46e6e;--orange:#c49050}
 html.theme-office .sop-selbar::-webkit-scrollbar{display:block;height:2px}
 html.theme-office .sop-selbar::-webkit-scrollbar-track{background:transparent}
-html.theme-office .sop-selbar::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:2px}
-html.theme-office .sop-selbar{scrollbar-width:thin;scrollbar-color:rgba(0,0,0,0.15) transparent}
+html.theme-office .sop-selbar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px}
+html.theme-office .sop-selbar{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.15) transparent}
 html.theme-office body{border:1px solid var(--border)}
 html.theme-office .bottom-nav{display:none}
 html.theme-office #theme-btn{top:8px;right:8px}
@@ -138,7 +138,7 @@ function applyTheme(name){
 currentTheme=name;
 document.documentElement.className=name==='office'?'theme-office':'';
 var btn=document.getElementById('theme-btn');
-if(btn)btn.textContent=name==='office'?'🌙 暗色':'☀️ 极简';
+if(btn)btn.textContent=name==='office'?'🌙 暗色':'◑ 极简';
 try{localStorage.setItem(THEME_KEY,name);}catch(e){}
 if(name==='office'){
 // force 上班日 SOP
