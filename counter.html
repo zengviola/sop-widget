@@ -62,7 +62,10 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
 /* Office minimal dark theme */
 html.theme-office{--bg:#0f1117;--surface:#1a1d27;--border:rgba(255,255,255,0.08);--text:#c8ccd8;--muted:#5a5f72;--hint:#2a2d3a;--green:#5db87e;--red:#c46e6e;--orange:#c49050}
 /* Light theme */
-html.theme-light{--bg:#ffffff;--surface:#f4f4f5;--border:rgba(0,0,0,0.08);--text:#18181b;--muted:#71717a;--hint:#d4d4d8;--green:#16a34a;--red:#dc2626;--orange:#d97706}
+html.theme-light{--bg:#f0f2f5;--surface:#ffffff;--border:rgba(0,0,0,0.10);--text:#111827;--muted:#6b7280;--hint:#c8ccd4;--green:#059669;--red:#dc2626;--orange:#d97706}
+html.theme-light body{color:var(--text)}
+html.theme-light .page-content::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15)}
+html.theme-light .page-content{scrollbar-color:rgba(0,0,0,0.15) transparent}
 html.theme-office .sop-selbar::-webkit-scrollbar{display:block;height:2px}
 html.theme-office .sop-selbar::-webkit-scrollbar-track{background:transparent}
 html.theme-office .sop-selbar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px}
