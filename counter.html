@@ -61,6 +61,8 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
 .page-content{scrollbar-width:thin;scrollbar-color:var(--hint) transparent}
 /* Office minimal dark theme */
 html.theme-office{--bg:#0f1117;--surface:#1a1d27;--border:rgba(255,255,255,0.08);--text:#c8ccd8;--muted:#5a5f72;--hint:#2a2d3a;--green:#5db87e;--red:#c46e6e;--orange:#c49050}
+/* Light theme */
+html.theme-light{--bg:#ffffff;--surface:#f4f4f5;--border:rgba(0,0,0,0.08);--text:#18181b;--muted:#71717a;--hint:#d4d4d8;--green:#16a34a;--red:#dc2626;--orange:#d97706}
 html.theme-office .sop-selbar::-webkit-scrollbar{display:block;height:2px}
 html.theme-office .sop-selbar::-webkit-scrollbar-track{background:transparent}
 html.theme-office .sop-selbar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px}
@@ -140,9 +142,9 @@ var currentTheme='dark';
 function isOfficeHours(){var d=new Date(),day=d.getDay(),h=d.getHours();return day>=1&&day<=4&&h>=7&&h<15;}
 function applyTheme(name){
 currentTheme=name;
-document.documentElement.className=name==='office'?'theme-office':'';
+document.documentElement.className=name==='office'?'theme-office':name==='light'?'theme-light':'';
 var btn=document.getElementById('theme-btn');
-if(btn)btn.textContent=name==='office'?'🌙 暗色':'◑ 极简';
+if(btn)btn.textContent=name==='dark'?'◑ 极简':name==='office'?'☀️ 亮色':'🌙 暗色';
 try{localStorage.setItem(THEME_KEY,name);}catch(e){}
 if(name==='office'){
 // force 上班日 SOP
@@ -157,7 +159,7 @@ if(typeof renderSOP==='function')renderSOP();
 }
 }
 }
-function toggleTheme(){applyTheme(currentTheme==='office'?'dark':'office');}
+function toggleTheme(){applyTheme(currentTheme==='dark'?'office':currentTheme==='office'?'light':'dark');}
 function loadTheme(){
 var saved=null;try{saved=localStorage.getItem(THEME_KEY);}catch(e){}
 applyTheme(saved||(isOfficeHours()?'office':'dark'));
