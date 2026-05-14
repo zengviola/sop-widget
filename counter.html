@@ -636,8 +636,9 @@ var btnR=document.createElement('button');btnR.textContent='→';btnR.style.cssT
 btnR.onclick=(function(idx){return function(){var m=sopList.splice(idx,1)[0];sopList.splice(idx+1,0,m);sopActiveListIdx=idx+1;saveSOP();renderSOP();};})(i);
 chip.appendChild(btnL);chip.appendChild(label);chip.appendChild(btnR);
 }else{
-var btn2=document.createElement('button');var active2=(i===sopActiveListIdx);btn2.style.cssText='flex-shrink:0;padding:7px 14px;border-radius:20px;border:1px solid '+(active2?'var(--text)':'var(--border)')+';background:'+(active2?'var(--text)':'transparent')+';color:'+(active2?'var(--bg)':'var(--muted)')+';font-size:13px;cursor:pointer;white-space:nowrap;';btn2.textContent=sop.name;
-btn2.onclick=(function(idx){return function(){if(sopActive)stopSOP();sopActiveListIdx=idx;saveSOP();renderSOP();};})(i);
+var btn2=document.createElement('button');var active2=(i===sopActiveListIdx);btn2.style.cssText='flex-shrink:0;padding:7px 14px;border-radius:20px;border:1px solid '+(active2?'var(--text)':'var(--border)')+';background:'+(active2?'var(--text)':'transparent')+';color:'+(active2?'var(--bg)':'var(--muted)')+';font-size:13px;cursor:grab;white-space:nowrap;';btn2.textContent=sop.name;
+chip.classList.add('sop-chip');
+(function(idx,chipEl,btn){var dragMoved=false;btn.onclick=function(){if(dragMoved)return;if(sopActive)stopSOP();sopActiveListIdx=idx;saveSOP();renderSOP();};chipEl.addEventListener('mousedown',function(e){if(e.button!==0)return;var startX=e.clientX,moved=false;var onMove=function(e2){if(!moved&&Math.abs(e2.clientX-startX)>6){moved=true;dragMoved=true;chipEl.style.opacity='0.5';}if(!moved)return;var el=document.elementFromPoint(e2.clientX,e2.clientY);var t=el&&el.closest&&el.closest('.sop-chip');if(t&&t!==chipEl){var toIdx=parseInt(t.dataset.idx);if(!isNaN(toIdx)&&toIdx!==idx){var m=sopList.splice(idx,1)[0];sopList.splice(toIdx,0,m);sopActiveListIdx=toIdx;saveSOP();renderSOP();}}};var onUp=function(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);chipEl.style.opacity='1';setTimeout(function(){dragMoved=false;},50);};document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);});})(i,chip,btn2);
 chip.appendChild(btn2);
 }
 selBar.appendChild(chip);
