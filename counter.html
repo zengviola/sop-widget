@@ -546,6 +546,7 @@ sopPaused=false;sopInterval=setInterval(sopTick,200);
 }
 
 function calcDurations(steps){function t2m(t){var p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}for(var i=0;i<steps.length;i++){steps[i].duration=i<steps.length-1?Math.max(60,(t2m(steps[i+1].time)-t2m(steps[i].time))*60):60;}}
+function resequenceTimes(steps){function t2m(t){var p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}function m2t(m){var h=Math.floor(m/60),mn=m%60;return String(h).padStart(2,'0')+':'+String(mn).padStart(2,'0');}for(var i=1;i<steps.length;i++){steps[i].time=m2t(t2m(steps[i-1].time)+Math.round((steps[i-1].duration||60)/60));}calcDurations(steps);}
 function currentSOP(){return sopList[sopActiveListIdx];}
 function fmtSecs(s){s=Math.ceil(s);var m=Math.floor(s/60),sec=s%60;return String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');}
 
@@ -685,7 +686,7 @@ row.appendChild(handle);row.appendChild(num);row.appendChild(icn);row.appendChil
 (function(fromRealIdx,rowEl){
 handle.addEventListener('mousedown',function(e){
 if(e.button!==0)return;e.preventDefault();var startY=e.clientY,didDrag=false;
-var onMove=function(e2){if(!didDrag&&Math.abs(e2.clientY-startY)>6){didDrag=true;rowEl.style.opacity='0.5';}if(!didDrag)return;var el2=document.elementFromPoint(e2.clientX,e2.clientY);var target=el2&&el2.closest&&el2.closest('[data-rowidx]');if(target){var toIdx=parseInt(target.dataset.rowidx);if(!isNaN(toIdx)&&toIdx!==fromRealIdx){var moved=sop.steps.splice(fromRealIdx,1)[0];sop.steps.splice(toIdx,0,moved);calcDurations(sop.steps);saveSOP();renderSOP();}}};
+var onMove=function(e2){if(!didDrag&&Math.abs(e2.clientY-startY)>6){didDrag=true;rowEl.style.opacity='0.5';}if(!didDrag)return;var el2=document.elementFromPoint(e2.clientX,e2.clientY);var target=el2&&el2.closest&&el2.closest('[data-rowidx]');if(target){var toIdx=parseInt(target.dataset.rowidx);if(!isNaN(toIdx)&&toIdx!==fromRealIdx){var moved=sop.steps.splice(fromRealIdx,1)[0];sop.steps.splice(toIdx,0,moved);resequenceTimes(sop.steps);saveSOP();renderSOP();}}};
 var onUp=function(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);rowEl.style.opacity='1';};
 document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);
 });
