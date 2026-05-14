@@ -720,7 +720,7 @@ var tT=document.createElementNS('http://www.w3.org/2000/svg','text');tT.setAttri
 var iT=document.createElementNS('http://www.w3.org/2000/svg','text');iT.setAttribute('x','70');iT.setAttribute('y','92');iT.setAttribute('text-anchor','middle');iT.setAttribute('font-size','22');iT.textContent=step2.icon;
 svg.appendChild(bgC);svg.appendChild(fgC);svg.appendChild(tT);svg.appendChild(iT);rWrap.appendChild(svg);
 }
-var stEl=document.createElement('div');stEl.style.cssText='font-size:20px;font-weight:500;color:var(--text);margin-top:8px;';stEl.textContent=step2.title;rWrap.appendChild(stEl);
+var stEl=document.createElement('div');stEl.style.cssText='font-size:20px;font-weight:500;color:'+(officeMode?'var(--muted)':'var(--text)')+';margin-top:8px;';stEl.textContent=step2.title;rWrap.appendChild(stEl);
 if(officeMode&&snEl)snEl.style.fontSize='12px';
 if(sopOvertime){var otEl=document.createElement('div');otEl.id='sop-overtime';otEl.style.cssText='font-size:22px;color:var(--red);margin-top:8px;font-weight:500;text-align:center;';otEl.textContent='+'+fmtSecs(sopOvertimeElapsed);rWrap.appendChild(otEl);}
 if(step2.note){var snEl=document.createElement('div');snEl.style.cssText='font-size:13px;color:var(--hint);margin-top:4px;text-align:center;';snEl.textContent=step2.note;rWrap.appendChild(snEl);}
